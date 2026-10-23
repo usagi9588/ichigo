@@ -1,0 +1,17 @@
+{
+  "name": "ichigo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "start": "node src/server.ts",
+    "dev": "node --watch src/server.ts",
+    "check": "node --check app.js && node --check src/server.ts && node --check src/store.ts && node --check skills/apply-job/scripts/ichigo.mjs && node --check scripts/e2e-serve.mjs && node --check tests/e2e.scenario.mjs",
+    "test": "node --test tests/*.test.ts",
+    "cli": "node skills/apply-job/scripts/ichigo.mjs",
+    "e2e:serve": "node scripts/e2e-serve.mjs"
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "passed": true,
+  "checks": [
+    "Real backend health check",
+    "Real HTTP reuses job for the same URL",
+    "Full-page screenshot saved and readable over HTTP：6",
+    "Job text extracted and Applying stage preserved",
+    "Cross-origin application popup and opener relationship",
+    "Local mock application form completed",
+    "Real HTTP cross-origin redirect",
+    "Restored job and three associated pages from database",
+    "All associated pages remain open when result save fails",
+    "Frontend displays Applying stage and full-page screenshot",
+    "Actual application time recorded in SQLite",
+    "Only associated pages closed; unrelated page preserved",
+    "Repeated result call does not add history",
+    "Board and open details sync updated result",
+    "Mock sign-in wall",
+    "Full-page screenshot saved and readable over HTTP：7",
+    "Recaptured after sign-in without new application or stage change",
+    "Real load failure status",
+    "Screenshot failure preserves previous image",
+    "Not applied result returns to To Apply",
+    "User closing page does not change stage automatically",
+    "Pending result can be saved after page was closed",
+    "Unrelated page remains open after multiple operations"
+  ],
+  "error": null,
+  "jobIds": [
+    6,
+    7,
+    8
+  ],
+  "runId": "1792724796920",
+  "date": "2026-10-23",
+  "cliChecks": [
+    "CLI real HTTP: applied",
+    "CLI real HTTP: pending",
+    "CLI real HTTP: saved",
+    "CLI restart and SQLite persistence"
+  ],
+  "recovery": {
+    "passed": true,
+    "jobId": 9,
+    "checks": [
+      "Restored page markers from SQLite in the next MCP call",
+      "Correctly identified isolated test context",
+      "Saved application result after isolated browser context closed",
+      "Shared browser and existing pages remained open"
+    ],
+    "stage": "pending",
+    "mainPages": [
+      "about:blank",
+      "http://127.0.0.1:4184/?e2e=1792724796920"
+    ],
+    "limitation": "Tested browser context loss; shared MCP transport was not disconnected"
+  },
+  "counts": {
+    "cli": 4,
+    "browser": 27
+  },
+  "note": "Real HTTP, SQLite, and Playwright MCP; the form was submitted only on a local mock recruitment site, with no API mocks. Shared MCP transport reconnection and manual submission on a real site were not verified."
+}
