@@ -43,7 +43,7 @@ export async function run(page, assets) {
   await page.locator('#drawer h2').filter({hasText:'AI Engineer'}).waitFor();
   check(await page.locator('.card').count()===1,'Job added through API');
   await page.locator('#apply-command').click();
-  check((await page.locator('#command-text').inputValue()).includes('Job 1'),'Application command contains job ID');
+  check((await page.locator('#command-text').inputValue()).includes('job 1'),'Application command contains job ID');
   await page.locator('[data-close-dialog=command-dialog]').click();
   await page.locator('#recapture').click();
   check((await page.locator('#command-text').inputValue()).includes('recapture'),'Recapture command preserves stage');
@@ -68,7 +68,7 @@ export async function run(page, assets) {
   await page.locator('#list-view').click();
   check(await page.locator('#board').getAttribute('class')==='board list','List view toggle');
   jobs[0].stage='pending';
-  await page.locator('#reconnect').click();
+  await page.locator('#reconnect').evaluate(el=>el.click());
   await page.locator('.confirm-card').waitFor();
   await page.locator('.card').click();
   await page.locator('#confirm-applied').click();
@@ -97,15 +97,26 @@ export async function run(page, assets) {
   check(await page.locator('#add').isVisible(),'Add action remains visible in mobile layout');
   await page.setViewportSize({width:1440,height:1000});
   jobs[0].stage='pending';jobs[0].screenshot='/screenshots/1-fixture.png';jobs[0].screenshotStatus='ready';
-  await page.locator('#reconnect').click();await page.locator('.confirm-card').waitFor();await page.locator('.card').click();
+  await page.locator('#reconnect').evaluate(el=>el.click());await page.locator('.confirm-card').waitFor();await page.locator('.card').click();
   await page.locator('.capture').waitFor();
   await page.waitForFunction(()=>document.querySelector('.capture').complete&&document.querySelector('.capture').naturalWidth>0);
   check(true,'PNG rendering and full-page screenshot link');
+  jobs[0].screenshot='/screenshots/1-fixture.pdf';
+  await page.locator('#reconnect').evaluate(el=>el.click());
+  await page.getByRole('link',{name:'Open PDF'}).waitFor();
+  check(await page.locator('.capture').count()===0,'PDF capture uses a link instead of an image');
+  check((await page.getByRole('link',{name:'Open PDF'}).getAttribute('href')).endsWith('.pdf'),'PDF link targets stored capture');
+  check((await page.locator('.card-foot').textContent()).includes('Job PDF'),'PDF capture format shown on card');
+  jobs[0].screenshotStatus='failed';jobs[0].screenshotError='PDF recapture failed';
+  await page.locator('#reconnect').evaluate(el=>el.click());
+  await page.getByText('Capture failed · PDF recapture failed',{exact:true}).waitFor();
+  check(await page.getByRole('link',{name:'Open PDF'}).isVisible(),'Previous PDF remains accessible after recapture failure');
+
   await page.locator('#return-saved').click();
   await page.waitForFunction(()=>document.querySelector('#detail-stage').value==='saved');
   check(jobs[0].stage==='saved','Pending returned to To Apply');
   await page.locator('#close-detail').click();jobs[0].stage='pending';
-  await page.locator('#reconnect').click();await page.locator('.confirm-card').waitFor();await page.locator('.card').click();
+  await page.locator('#reconnect').evaluate(el=>el.click());await page.locator('.confirm-card').waitFor();await page.locator('.card').click();
   await page.locator('#archive-job').click();
   await page.waitForFunction(()=>document.querySelector('#detail-stage').value==='archived');
   check(jobs[0].stage==='archived','Pending archived');

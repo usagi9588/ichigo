@@ -23,6 +23,14 @@ test('CLI drives start, metadata, page tracking, screenshot and result through a
   await execute(['screenshot',id,'--status','blocked','--error','Login'],request);
   const path=join(directory,'capture.png');writeFileSync(path,Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aL1sAAAAASUVORK5CYII=','base64'));
   await execute(['screenshot',id,'--file',path],request);
+  assert.match((await execute(['get',id],request)).job.screenshot,/\.png$/);
+  const pdfPath=join(directory,'capture.pdf');writeFileSync(pdfPath,'%PDF-1.7\n%%EOF\n');
+  const pdf=await execute(['screenshot',id,'--file',pdfPath],request);
+  assert.match(pdf.job.screenshot,/\.pdf$/);
+  assert.equal(app.dispatch('GET',pdf.job.screenshot).headers['content-type'],'application/pdf');
+  const invalidPath=join(directory,'invalid.pdf');writeFileSync(invalidPath,'invalid');
+  await assert.rejects(execute(['screenshot',id,'--file',invalidPath],request));
+  assert.equal((await execute(['get',id],request)).job.screenshot,pdf.job.screenshot);
   const result=await execute(['result',id,'--session',session,'--result','applied'],request);
   assert.equal(result.job.stage,'applied');assert.equal(result.job.screenshotStatus,'ready');
   assert.equal(result.job.sessions[0].pages.length,1);

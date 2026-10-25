@@ -21,7 +21,7 @@ npm run cli -- status
 npm run cli -- stop
 ```
 
-By default, data is stored in `.data/ichigo.sqlite`, screenshots in `.data/screenshots/`, and service logs in `.data/server.log`. Set `ICHIGO_PORT` to change the port or `ICHIGO_DATA_DIR` to use another data directory (an absolute path is recommended). Use the same configuration when starting the service and calling the CLI.
+By default, data is stored in `.data/ichigo.sqlite`, PNG and PDF captures in `.data/screenshots/`, and service logs in `.data/server.log`. Set `ICHIGO_PORT` to change the port or `ICHIGO_DATA_DIR` to use another data directory (an absolute path is recommended). Use the same configuration when starting the service and calling the CLI.
 
 If the Codex sandbox reports `listen EPERM`, run the startup command in a local terminal. The service binds only to 127.0.0.1.
 
@@ -44,7 +44,7 @@ Tell Codex:
 Use Ichigo's apply-job skill to apply for this job: https://example.com/jobs/123
 ```
 
-Codex creates the job and application record, opens a separate tab, extracts job information, and saves a full-page screenshot. You then fill out, upload your resume, and submit manually. The Apply button in job details generates a copyable Codex command.
+Codex creates the job and application record, opens a separate tab, extracts job information, and first attempts a full-page PNG screenshot. If it fails, Codex retries once; if both attempts fail, it uses native Playwright MCP `browser_pdf_save` to save a PDF. You then fill out, upload your resume, and submit manually. The Apply button in job details generates a copyable Codex command.
 
 Afterward, tell Codex:
 
@@ -54,7 +54,9 @@ Afterward, tell Codex:
 
 If saving fails, the page stays open. Closing it yourself does not change the stage. MCP manages application pages; the backend does not monitor page closures. Restarting the backend does not end an unfinished application. Continue through Codex or record the result in job details.
 
-To recapture, say “Recapture a full-page screenshot for job 123.” This does not create an application or change the stage. The screenshot tool must provide a PNG path readable by the local script. If it cannot, record a failure status and preserve existing data. A PNG may be up to 12 MB.
+To recapture, say “Recapture a full-page screenshot for job 123.” This does not create an application or change the stage. Recapture uses the same sequence: full-page PNG, one retry on failure, then native `browser_pdf_save`. Both tools must return a local file path readable by the CLI. If PDF generation or import fails, record a failure status and preserve any previous capture. PNG and PDF files may each be up to 12 MB. PDF captures appear as “Job PDF” with an “Open PDF” link; print pagination and styling may differ from the screen. Sign-in walls remain blocked until you sign in and request recapture.
+
+Enable the native PDF tool by adding `"--caps=pdf"` to the Playwright MCP server arguments (for example, `["@playwright/mcp@latest", "--caps=pdf"]`), then restart or reconnect the MCP server. If the tool is unavailable, Codex reports the fallback failure.
 
 The CLI can also manage data directly:
 
@@ -63,6 +65,7 @@ npm run cli -- start 'https://example.com/jobs/123'
 npm run cli -- get 1
 npm run cli -- patch 1 --json '{"company":"Acme","title":"AI Engineer"}'
 npm run cli -- screenshot 1 --file /absolute/path/capture.png
+npm run cli -- screenshot 1 --file /absolute/path/job.pdf
 npm run cli -- result 1 --session SESSION_ID --result applied
 npm run cli -- help
 ```
@@ -96,7 +99,7 @@ Stop the foreground service with Ctrl+C or run `npm run cli -- stop`, then copy 
 - `POST /api/jobs/:id/start`, `POST /api/jobs/:id/pages`
 - `POST /api/jobs/:id/result`, `POST /api/jobs/:id/screenshot`
 
-Write endpoints accept JSON and can be called by the same-origin frontend. CLI requests require `X-Ichigo-Client: cli`; cross-origin access is not enabled. `pages` accepts `sessionId` and a `pages` array. `result` accepts `sessionId`, `result` (`applied`/`pending`/`saved`), and optional `appliedAt`. Screenshot requests accept `pngBase64`, or `status` (`blocked`/`failed`/`missing`) and `error`.
+Write endpoints accept JSON and can be called by the same-origin frontend. CLI requests require `X-Ichigo-Client: cli`; cross-origin access is not enabled. `pages` accepts `sessionId` and a `pages` array. `result` accepts `sessionId`, `result` (`applied`/`pending`/`saved`), and optional `appliedAt`. Screenshot requests accept exactly one of `pngBase64` or `pdfBase64` for a successful capture, or `status` (`blocked`/`failed`/`missing`) and `error`.
 
 ```sh
 npm run check

@@ -58,8 +58,8 @@ export function makeApp(options: { directory?: string; port?: number } = {}) {
         const [file,type] = assets[pathname];
         return { status: 200, headers: {...common, 'content-type': type}, body: readFileSync(join(root,file)) };
       }
-      if (/^\/screenshots\/[1-9]\d*-[0-9a-f-]{36}\.png$/.test(pathname)) {
-        try { return {status: 200, headers: {...common,'content-type':'image/png'}, body: readFileSync(join(store.directory, pathname.slice(1))) }; }
+      if (/^\/screenshots\/[1-9]\d*-[0-9a-f-]{36}\.(png|pdf)$/.test(pathname)) {
+        try { return {status: 200, headers: {...common,'content-type':pathname.endsWith('.pdf') ? 'application/pdf' : 'image/png'}, body: readFileSync(join(store.directory, pathname.slice(1))) }; }
         catch { throw new AppError('Screenshot file not found',404); }
       }
       throw new AppError('Page not found',404);

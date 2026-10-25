@@ -1,12 +1,14 @@
 # Ichigo Development Progress
 
-Last updated: 2026-10-23
+Last updated: 2026-10-26
 
 ## Current Plan
 
 A local, single-user job tracker. Keep the existing static frontend; use Node.js, TypeScript, the built-in HTTP server, and SQLite for the backend. Codex operates the browser through Playwright MCP using the skill.
 
 Flow: The user provides a job URL → Codex opens the job and saves a screenshot → the backend stores the job → the user fills out and submits the application manually → the user tells Codex the result → Codex records it and closes the pages associated with this application.
+
+Capture workflow: Always attempt a full-page PNG first and retry once on failure. If both attempts fail, use native Playwright MCP `browser_pdf_save` with default print settings instead of a viewport screenshot. Apply this sequence to initial captures and recaptures; preserve any previous capture if the fallback fails.
 
 Result rules:
 
@@ -90,6 +92,19 @@ The backend does not start or manage the Playwright browser and does not continu
 - [x] Verified frontend creation, search and filters, drag and drop, result confirmation, screenshot viewing, and automatic refresh.
 - [ ] Complete a manual trial on a real website and record any issues.
 
+## 6. Native PDF Fallback
+
+- [x] Enable Playwright MCP with `--caps=pdf` and confirm native `browser_pdf_save` availability after restart.
+- [x] Update plan.md with the agreed capture order and PDF support requirements.
+- [x] Extend the screenshot CLI and API to import PNG or PDF files, validate signatures, preserve PNG compatibility, and retain the 12 MB limit.
+- [x] Serve PDFs as `application/pdf` through restricted capture routes while retaining existing screenshot URL and status fields without a database migration.
+- [x] Update the apply-job skill to attempt a full-page PNG, retry once on failure, then use native `browser_pdf_save`; replace the viewport fallback for initial captures and recaptures.
+- [x] Preserve previous captures and report accurate failure status if PDF generation or import fails; retain sign-in handling.
+- [x] Show “Job PDF” and an “Open PDF” link for PDF captures, retain PNG previews, and record the correct format in activity history.
+- [x] Update README.md with PDF fallback behavior and CLI usage.
+- [x] Verify PNG compatibility, PDF import and serving, invalid files, size limits, fallback ordering, preservation on failure, and frontend PDF links.
+- [x] Exercise native `browser_pdf_save` on a local test page and verify the imported PDF opens from job details; run syntax checks and relevant automated tests.
+
 ## Current Acceptance Status and Environment Limits
 
 - Completed the first backend, SQLite, CLI, skill documentation, and frontend API integration; all 11 automated test groups passed.
@@ -101,6 +116,7 @@ The backend does not start or manage the Playwright browser and does not continu
 - Disconnecting and reconnecting the shared MCP transport and a user-submitted application on a real recruitment website remain unverified and unchecked.
 - See `tests/e2e-latest.json` for results and README.md for operation and reproduction steps.
 - The skill is in `skills/apply-job`. AGENTS.md provides the project route, and README.md documents global symlink installation. The global skills directory was not modified.
+- Native PDF fallback is implemented and verified: two full-page PNG attempts timed out on a local fixture, native `browser_pdf_save` produced a 15,856-byte PDF, and real CLI/HTTP/SQLite import and opening from job details passed in an isolated database on port 4284. All 12 automated tests, syntax checks, and 25 browser UI checks passed. See tests/pdf-latest.json. Production job data was not modified.
 
 ## Implementation Order and Scope
 
@@ -153,3 +169,29 @@ This document replaces the plan.md proposal for direct backend Playwright contro
 - 2026-10-23 Summary: Created the initial repository commit after checking for sensitive data; it included 24 frontend, backend, skill, test, and integration record files.
 
 - 2026-10-23 Summary: Translated all repository content into English; repository-wide Chinese-character scan found none, `npm run check` passed, and all 11 automated test groups passed.
+
+- 2026-10-24 Summary: Updated the apply-job skill with the observed ~5-second screenshot timeout, one retry, and viewport fallback. This application first timed out twice, then a full-page capture succeeded on a later attempt; imported it into job 2.
+
+- 2026-10-26 Summary: Enabled Playwright MCP PDF capability by adding --caps=pdf to the global Codex configuration; verified the saved configuration. Native browser_pdf_save availability and PDF capture remain unverified until the MCP server reconnects.
+
+- 2026-10-26 Summary: Updated plan.md with the agreed full-page PNG attempt, one retry, and native browser_pdf_save fallback, including planned storage, frontend, and verification changes. Confirmed native tool availability after restart; implementation and PDF generation remain pending. Documentation reviewed; no runtime tests run.
+
+- 2026-10-26 Summary: Updated progress.md with the agreed PNG-first capture sequence, completed PDF capability setup, and unchecked PDF implementation and acceptance tasks. Reviewed alignment with plan.md; no runtime changes or tests performed.
+
+- 2026-10-26 Summary: Extended screenshot CLI/API imports to PDF with signature and 12 MB validation; PNG compatibility, invalid imports, and preservation checks passed in 11 backend/CLI tests.
+
+- 2026-10-26 Summary: Added restricted PDF serving with application/pdf and retained existing URL/status fields without migration; serving, traversal protection, persistence, and unchanged application stage passed backend tests.
+
+- 2026-10-26 Summary: Updated the apply-job skill for initial captures and recaptures to try full-page PNG twice before native browser_pdf_save; reviewed ordering and removed the viewport fallback. Real fallback execution remains pending acceptance.
+
+- 2026-10-26 Summary: Specified accurate PDF failure and sign-in reporting in the skill; backend/CLI tests verify failed imports and failed status updates preserve previous files and application state.
+
+- 2026-10-26 Summary: Documented PNG-first retries, native PDF capability setup, PDF viewing and CLI/API usage, and capture limits and failure behavior in README.md; reviewed against the implemented CLI/API and skill.
+
+- 2026-10-26 Summary: Added PDF labels and Open PDF links while retaining PNG previews; 25 browser UI checks passed with 33 controlled API requests and no unhandled JavaScript errors, including preservation of a previous PDF after failure. Corrected stale command-case and overlay interactions in the UI scenario.
+
+- 2026-10-26 Summary: Verified PNG compatibility, PDF validation and size limits, restricted serving, failure preservation, and PDF frontend behavior; all 12 automated tests, syntax checks, and 25 UI checks passed. Reviewed the skill capture order for initial captures and recaptures.
+
+- 2026-10-26 Summary: Exercised native browser_pdf_save after two full-page PNG timeouts on a local fixture; imported its 15,856-byte PDF through the real CLI/HTTP API into isolated SQLite and opened it from job details. Saved acceptance evidence in tests/pdf-latest.json; production data was unchanged.
+
+- 2026-10-26 Summary: Reviewed and prepared the PDF fallback implementation, documentation, and acceptance evidence for commit; git diff --check passed. Excluded the unrelated elation-full-page.png file.

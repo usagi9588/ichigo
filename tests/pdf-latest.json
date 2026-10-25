@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-26",
+  "automatedTests": {
+    "passed": 12,
+    "failed": 0,
+    "command": "npm test"
+  },
+  "syntaxChecks": "npm run check passed",
+  "browserUi": {
+    "passed": 25,
+    "requests": 33,
+    "unhandledErrors": 0,
+    "scenario": "tests/ui.scenario.mjs",
+    "api": "controlled fixtures"
+  },
+  "nativePdf": {
+    "fixture": "local routed HTML page with 1981px document height",
+    "fullPagePngAttempts": 2,
+    "pngOutcome": "Both timed out after 5000ms",
+    "tool": "browser_pdf_save",
+    "pdfBytes": 15856,
+    "import": "Real CLI, HTTP API, and isolated SQLite",
+    "view": "Open PDF link opened the stored PDF URL in a new tab; application/pdf and %PDF- signature verified",
+    "database": ".data/pdf-acceptance/db/ichigo.sqlite",
+    "artifact": ".data/pdf-acceptance/native-job-fallback.pdf",
+    "productionDataModified": false
+  },
+  "notes": [
+    "Fallback ordering is specified by the apply-job skill; backend does not operate the browser.",
+    "Existing shared MCP transport recovery and real job application acceptance tasks remain unchanged."
+  ]
+}

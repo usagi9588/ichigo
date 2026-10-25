@@ -94,6 +94,33 @@ test('same-origin writes only, reject hostile Host/Origin/form and cross-site fe
   assert.equal(dispatch('GET','/').headers['content-type'],'text/html; charset=utf-8');
 });
 
+test('PDF import, serving, validation and failed recapture preserve stored files and stage',t=>{
+  const {store,request:r,dispatch,directory}=setup(t);
+  const id=store.create({url:'https://example.test/pdf',stage:'interview'}).job.id;
+  const endpoint=`/api/jobs/${id}/screenshot`;
+  const pdf=Buffer.from('%PDF-1.7\n1 0 obj\n<<>>\nendobj\n%%EOF\n');
+  const captured=r('POST',endpoint,{pdfBase64:pdf.toString('base64')});
+  assert.equal(captured.status,200);
+  const job=captured.data.job,path=job.screenshot;
+  assert.match(path,/\.pdf$/);assert.equal(job.stage,'interview');assert.equal(job.sessions.length,0);
+  assert.equal(job.history.at(-1).text,'Saved job PDF');
+  const served=dispatch('GET',path);
+  assert.equal(served.headers['content-type'],'application/pdf');assert.deepEqual(served.body,pdf);
+  assert.equal(served.headers['x-content-type-options'],'nosniff');
+  for(const payload of [{pdfBase64:'invalid!'},{pdfBase64:Buffer.from('not a PDF').toString('base64')},
+    {pngBase64:pdf.toString('base64')},{pdfBase64:pdf.toString('base64'),pngBase64:'AAAA'},
+    {pdfBase64:Buffer.concat([pdf,Buffer.alloc(12*1024*1024)]).toString('base64')}]) {
+    assert.equal(r('POST',endpoint,payload).status,400);
+    assert.equal(store.get(id).screenshot,path);
+  }
+  const failed=r('POST',endpoint,{status:'failed',error:'PNG and PDF capture failed'}).data.job;
+  assert.equal(failed.screenshot,path);assert.equal(failed.screenshotStatus,'failed');
+  assert.equal(failed.screenshotError,'PNG and PDF capture failed');assert.equal(dispatch('GET',path).status,200);
+  const reopened=new Store(directory);
+  try {assert.equal(reopened.get(id).screenshot,path);} finally {reopened.close();}
+  for(const path of ['/screenshots/../../ichigo.sqlite','/screenshots/file.pdf','/screenshots/1-00000000-0000-0000-0000-000000000000.html']) assert.equal(dispatch('GET',path).status,404);
+});
+
 test('new jobs honor the chosen board stage without creating implicit active sessions', t=>{
   const {request:r}=setup(t);
   const created=r('POST','/api/jobs',{url:'https://example.test/interview',stage:'interview'});

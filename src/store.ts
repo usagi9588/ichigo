@@ -173,17 +173,22 @@ export class Store {
     if (!['ready','failed','blocked','missing'].includes(String(status))) throw new AppError('Invalid screenshot status');
     let filename: string | null = null;
     if (status === 'ready') {
-      if (typeof input.pngBase64 !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(input.pngBase64)) throw new AppError('Provide PNG data in Base64 format');
-      const bytes = Buffer.from(input.pngBase64, 'base64');
-      if (bytes.length > 12 * 1024 * 1024 || bytes.length < 33 || bytes.subarray(0,8).toString('hex') !== '89504e470d0a1a0a' || bytes.subarray(12,16).toString() !== 'IHDR') throw new AppError('Screenshot must be a PNG no larger than 12 MB');
-      filename = `${id}-${randomUUID()}.png`;
+      if (input.pngBase64 !== undefined && input.pdfBase64 !== undefined) throw new AppError('Provide one PNG or PDF capture');
+      const pdf = input.pdfBase64 !== undefined;
+      const encoded = pdf ? input.pdfBase64 : input.pngBase64;
+      if (typeof encoded !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) throw new AppError('Provide PNG or PDF data in Base64 format');
+      const bytes = Buffer.from(encoded, 'base64');
+      const valid = pdf ? /^%PDF-\d\.\d/.test(bytes.subarray(0,8).toString('ascii'))
+        : bytes.length >= 33 && bytes.subarray(0,8).toString('hex') === '89504e470d0a1a0a' && bytes.subarray(12,16).toString() === 'IHDR';
+      if (bytes.length > 12 * 1024 * 1024 || !valid) throw new AppError('Capture must be a valid PNG or PDF no larger than 12 MB');
+      filename = `${id}-${randomUUID()}.${pdf ? 'pdf' : 'png'}`;
       writeFileSync(join(this.directory, 'screenshots', filename), bytes, { flag: 'wx' });
     }
     try {
       return this.transaction(() => {
         job.screenshotStatus = String(status); job.screenshotError = text(input.error ?? '', 2000);
         if (filename) job.screenshot = '/screenshots/' + filename;
-        job.updatedAt = now(); this.save(job); this.event(id, status === 'ready' ? 'Saved full-page job screenshot' : 'Screenshot status: ' + status);
+        job.updatedAt = now(); this.save(job); this.event(id, status === 'ready' ? (filename?.endsWith('.pdf') ? 'Saved job PDF' : 'Saved full-page job screenshot') : 'Screenshot status: ' + status);
         return this.get(id);
       });
     } catch (e) { if (filename) unlinkSync(join(this.directory, 'screenshots', filename)); throw e; }

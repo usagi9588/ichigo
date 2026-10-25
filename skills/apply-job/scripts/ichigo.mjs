@@ -17,6 +17,7 @@ export const help = `Ichigo CLI (Node.js 24+)
   pages ID --session SESSION_ID --json '{"pages":[{"url":"https://...","title":"...","marker":"ichigo:SESSION_ID"}]}'
   result ID --session SESSION_ID --result applied|pending|saved [--at ISO_TIME]
   screenshot ID --file /absolute/path/full-page.png
+  screenshot ID --file /absolute/path/job.pdf
   screenshot ID --status blocked|failed|missing [--error REASON]
 JSON may be read from a file using --json @/absolute/path/data.json.
 Environment: ICHIGO_PORT (4174), ICHIGO_DATA_DIR, ICHIGO_ROOT.
@@ -87,8 +88,10 @@ export async function execute(argv, request) {
     let data;
     if(flags.file) {
       if(flags.status || flags.error) throw new Error('--file cannot be combined with --status or --error');
-      if(statSync(flags.file).size>12*1024*1024) throw new Error('Screenshot exceeds 12 MB');
-      data={pngBase64:readFileSync(flags.file).toString('base64')};
+      if(statSync(flags.file).size>12*1024*1024) throw new Error('Capture exceeds 12 MB');
+      const bytes=readFileSync(flags.file);
+      const pdf=/^%PDF-\d\.\d/.test(bytes.subarray(0,8).toString('ascii'));
+      data=pdf?{pdfBase64:bytes.toString('base64')}:{pngBase64:bytes.toString('base64')};
     } else {
       if(!['blocked','failed','missing'].includes(flags.status)) throw new Error('Provide --file or a valid --status');
       data={status:flags.status,error:flags.error??''};
