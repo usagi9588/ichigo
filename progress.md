@@ -1,6 +1,6 @@
 # Ichigo Development Progress
 
-Last updated: 2026-10-26
+Last updated: 2026-10-27
 
 ## Current Plan
 
@@ -105,7 +105,18 @@ The backend does not start or manage the Playwright browser and does not continu
 - [x] Verify PNG compatibility, PDF import and serving, invalid files, size limits, fallback ordering, preservation on failure, and frontend PDF links.
 - [x] Exercise native `browser_pdf_save` on a local test page and verify the imported PDF opens from job details; run syntax checks and relevant automated tests.
 
+## 7. Multiple Active Applications
+
+- [x] Update plan.md with the agreed multiple-active-job behavior, context-based result targeting, migration, and verification plan.
+- [x] Migrate SQLite to version 2 with at most one active session per job, preserving existing data.
+- [x] Allow application startup across different jobs while reusing an active session for the same job.
+- [x] Update the apply-job skill and README.md for multiple active jobs and clarification when result targeting is ambiguous.
+- [x] Verify migration, per-job uniqueness, session reuse, independent results and page records, idempotency, and mismatched session rejection; run automated tests and syntax checks.
+- [x] Verify separate browser page ownership and closing isolation using an isolated fixture; review ambiguous-report and save-failure instructions.
+
 ## Current Acceptance Status and Environment Limits
+
+- Multiple active applications are implemented and verified: 14 automated tests, syntax checks, 29 browser checks, and 4 CLI checks passed. See tests/multi-session-latest.json. Isolated services were stopped after verification. The production backend was not running on port 4174; its database will migrate on the next startup.
 
 - Completed the first backend, SQLite, CLI, skill documentation, and frontend API integration; all 11 automated test groups passed.
 - After the user ran `npm run e2e:serve`, all 4 checks for the three real CLI/HTTP results and persistence across backend restarts passed. Real MCP, HTTP, and SQLite integration passed 23 checks; cross-call recovery and recovery after losing an isolated browser context passed 4 more, for 27 browser integration checks total.
@@ -195,3 +206,35 @@ This document replaces the plan.md proposal for direct backend Playwright contro
 - 2026-10-26 Summary: Exercised native browser_pdf_save after two full-page PNG timeouts on a local fixture; imported its 15,856-byte PDF through the real CLI/HTTP API into isolated SQLite and opened it from job details. Saved acceptance evidence in tests/pdf-latest.json; production data was unchanged.
 
 - 2026-10-26 Summary: Reviewed and prepared the PDF fallback implementation, documentation, and acceptance evidence for commit; git diff --check passed. Excluded the unrelated elation-full-page.png file.
+
+- 2026-10-26 Summary: Recaptured Microsoft Software Engineer II - Full Stack (job 4): both full-page PNG attempts timed out, then native browser_pdf_save succeeded. Restarted the outdated local backend to load PDF support, imported and verified the PDF, and confirmed ready status with the existing Applying stage and single application session preserved.
+
+- 2026-10-26 Summary: Added an inline PDF iframe preview with a retained Open PDF link and responsive sizing; allowed same-origin framing only for PDF capture responses. All 12 automated tests, syntax checks, and diff checks passed; live preview verification follows.
+
+- 2026-10-26 Summary: Verified the inline preview on Microsoft job 4 after restarting the backend: PDF response was 200/application/pdf with SAMEORIGIN, Chromium loaded its PDF viewer inside the iframe, desktop/mobile preview sizes fit the drawer, and Open PDF remained available. Job data and application state were unchanged.
+
+- 2026-10-26 Summary: Discarded the uncommitted inline PDF preview at the user’s request; restored the committed Open PDF link behavior and PDF framing headers. Preserved the existing job PDF and capture history; verified preview source and test changes were reverted.
+
+- 2026-10-27 Summary: Updated plan.md with the agreed multiple active application design and added pending implementation and verification tasks to progress.md. Reviewed documentation alignment; runtime implementation and tests remain pending.
+
+- 2026-10-27 Summary: Implemented transactional SQLite version 2 migration and per-job active-session reuse. Store syntax check passed; behavioral and migration verification follow.
+
+- 2026-10-27 Summary: Updated the apply-job skill and README for concurrent jobs, context-based result targeting, page ownership, and version 2 compatibility. Reviewed against existing job/session API requirements; runtime verification follows.
+
+- 2026-10-27 Summary: Added migration and concurrent-session isolation regression tests; all 14 automated tests and syntax checks passed, including per-job uniqueness, reuse, reverse-order results, page preservation, idempotency, and mismatched identifiers.
+
+- 2026-10-27 Summary: Real HTTP/SQLite/Playwright integration passed 29 browser checks and 4 CLI checks in an isolated database on ports 4384–4386. Verified concurrent sessions, reuse, mismatched result rejection, independent tabs and records, and save-failure preservation; reviewed ambiguous-report instructions.
+
+- 2026-10-27 Summary: Updated plan.md to reflect completed multiple-session support and saved acceptance evidence in tests/multi-session-latest.json; final syntax and diff checks passed. Stopped isolated test services and confirmed the production backend is not running; production migration will occur on its next startup.
+
+- 2026-10-27 Summary: Started Newfold Digital Senior Software Engineer - AI (job 6), extracted the public LinkedIn job description, saved session page associations, and imported a full-page PNG successfully. Left the application tab open for manual application; no result recorded and existing sessions were unchanged.
+
+- 2026-10-27 Summary: Started Connect Tech+Talent AI Solutions Architect - Canada (Remote) (job 7), saved extracted details, session page associations, and a full-page PNG. Confirmed job 6 remains Applying with its existing active session; both job tabs remain open for manual applications.
+
+- 2026-10-27 Summary: Recorded the user-confirmed Applied result for job 5 and its active session; CLI save succeeded. Browser pages were left open as no closure was requested.
+
+- 2026-10-27 Summary: Recorded the user-confirmed Applied result for job 6 and its active session; CLI save succeeded. Browser pages were left open as no closure was requested.
+
+- 2026-10-27 Summary: Recorded the user-confirmed Applied result for job 7 and its active session; CLI save succeeded. Browser pages were left open as no closure was requested.
+
+- 2026-10-27 Summary: Reviewed and prepared multiple active application support, documentation, regression tests, and acceptance evidence for commit; git diff --check passed. Retained the previously recorded 14 automated, 29 browser, and 4 CLI passing checks; excluded unrelated elation-full-page.png.

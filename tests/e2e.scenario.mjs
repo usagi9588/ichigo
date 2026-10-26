@@ -38,7 +38,7 @@ export async function run(page, config) {
     for(const p of context.pages()){
       if(p.isClosed())continue;
       const marker=await p.evaluate(()=>window.name);
-      if(marker==='ichigo:'+sessionId || session.pages.some(r=>r.url===p.url()&&createdPages.includes(p)))candidates.push(p);
+      if(marker==='ichigo:'+sessionId || (!marker.startsWith('ichigo:') && session.pages.some(r=>r.url===p.url()&&createdPages.includes(p))))candidates.push(p);
     }
     const after=(await api('POST',`/jobs/${id}/result`,{sessionId,result})).job;
     for(const p of candidates)await p.close();
@@ -49,6 +49,18 @@ export async function run(page, config) {
     const health=await api('GET','/health');check(health.service==='ichigo','Real backend health check');
     const unrelated=await newPage(jobsBase+'/unrelated');
     const main=await begin('/jobs/engineer');
+    const concurrent=await begin('/jobs/concurrent');
+    check(concurrent.session.id!==main.session.id,'Different jobs have distinct concurrent active sessions');
+    const resumed=await api('POST',`/jobs/${main.job.id}/start`,{});
+    check(resumed.reused&&resumed.session.id===main.session.id,'Starting an earlier active job reuses its own session');
+    const concurrentBefore=(await api('GET','/jobs/'+concurrent.job.id)).job;
+    let mismatch=false;try{await finishAndClose(main.job.id,concurrent.session.id,'applied');}catch{mismatch=true;}
+    check(mismatch&&!main.p.isClosed()&&!concurrent.p.isClosed(),'Mismatched concurrent session rejected without closing either page');
+    check(JSON.stringify((await api('GET','/jobs/'+concurrent.job.id)).job)===JSON.stringify(concurrentBefore),'Rejected result leaves the other active application unchanged');
+    const mainBefore=(await api('GET','/jobs/'+main.job.id)).job;
+    await finishAndClose(concurrent.job.id,concurrent.session.id,'pending');
+    check(concurrent.p.isClosed()&&!main.p.isClosed()&&!unrelated.isClosed(),'Finishing the second application closes only its own tab');
+    check(JSON.stringify((await api('GET','/jobs/'+main.job.id)).job)===JSON.stringify(mainBefore),'Finishing the second application preserves the first active session and page records');
     const metadata=await main.p.evaluate(()=>({company:document.querySelector('[data-company]').textContent,title:document.querySelector('h1').textContent,location:document.querySelector('[data-location]').textContent,actualUrl:location.href,text:document.querySelector('main').innerText}));
     await api('PATCH','/jobs/'+main.job.id,metadata);
     const duplicate=await api('POST','/jobs',{url:main.job.url});check(duplicate.job.id===main.job.id&&!duplicate.created,'Real HTTP reuses job for the same URL');

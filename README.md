@@ -70,7 +70,9 @@ npm run cli -- result 1 --session SESSION_ID --result applied
 npm run cli -- help
 ```
 
-The CLI starts the local service as needed and outputs JSON; failures return a nonzero exit code. Recording a result requires the application session ID. Repeating the same result does not duplicate history. Only one application can be active at a time; record its result before starting another job.
+The CLI starts the local service as needed and outputs JSON; failures return a nonzero exit code. Recording a result requires the application session ID. Repeating the same result does not duplicate history. Different jobs can have active applications simultaneously, with at most one active session per job. Starting the same job again reuses its active session. Identify the job explicitly or through clear conversation context when reporting a result; Codex asks when the target is ambiguous and never defaults to the newest session. Recording one result leaves other applications and their pages unchanged.
+
+On startup, existing databases migrate transactionally to schema version 2 without changing job, session, page, or history records. Restart an already running backend to load this change. Older backend versions reject version 2 databases; reverting requires a compatible database backup.
 
 ## Migrate legacy data
 

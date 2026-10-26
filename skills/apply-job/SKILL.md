@@ -16,7 +16,7 @@ node /absolute/path/to/skills/apply-job/scripts/ichigo.mjs start 'https://exampl
 node /absolute/path/to/skills/apply-job/scripts/ichigo.mjs get JOB_ID
 ```
 
-`start` accepts a URL or job ID and returns `job` (including `detailUrl`) and `session`. It reuses an active application for the same job and refuses to start when another job has an active application; do not end that other application without instructions. `get` retrieves the session ID, page records, and history. The browser does not need a background listener; a user closing a page does not automatically change the stage.
+`start` accepts a URL or job ID and returns `job` (including `detailUrl`) and `session`. It reuses an active application for the same job and allows different jobs to have active applications simultaneously. Starting another job does not end or change any existing application. `get` retrieves the session ID, page records, and history. The browser does not need a background listener; a user closing a page does not automatically change the stage.
 
 ## Open the job and hand it to the user
 
@@ -29,13 +29,15 @@ node /absolute/path/to/skills/apply-job/scripts/ichigo.mjs get JOB_ID
 
 ## Record the result and close pages
 
+First identify the target job from an explicit job reference or unambiguous conversation context. If multiple jobs could match, ask which job the user means before saving a result or closing pages. Never default to the newest session or the currently selected browser tab. Use `list` and `get JOB_ID` to recover records when needed, and select that job's active session; for a repeated result, use the original ended session rather than starting a new one.
+
 Map the user's explicit statements as follows:
 
 - Submitted / applied → `applied`.
 - Asked only to close the page without stating whether they submitted → `pending`.
 - Did not apply / did not submit → `saved`.
 
-1. Use `get JOB_ID` to retrieve the current application record. Enumerate browser pages and identify the pages for this application. Prefer the `window.name` marker and saved URL. Include a redirect or popup only when its opener relationship or the user's description makes the association clear. Re-enumerate pages across conversation turns; never close a page based on a stale tab index. If page ownership is unclear after checking markers, URLs, and openers, ask the user which page to close.
+1. Use `get JOB_ID` to retrieve the current application record. Enumerate browser pages and identify the pages for this application. Prefer the matching session’s `window.name` marker and saved URL. A page marked for another session must not be selected merely because its URL matches; URL alone is insufficient when ownership is ambiguous. Include a redirect or popup only when its opener relationship or the user's description makes the association clear. Re-enumerate pages across conversation turns; never close a page based on a stale tab index. If page ownership is unclear after checking markers, URLs, and openers, ask the user which page to close.
 2. First call `result JOB_ID --session SESSION_ID --result applied|pending|saved`. If the user specified the actual application time, add `--at ISO_TIME`; otherwise, Applied defaults to the current confirmation time. If the user asked only to record the result and did not ask to close pages, leave them open after saving.
 3. Close only pages the user asked to close and that are confirmed to belong to this application, and only after saving succeeds. Re-enumerate immediately before closing each page so index movement cannot close another page. Never use an operation that closes the entire shared browser.
 4. If the API or SQLite save fails, leave every page open, report the failure, and do not report success or retry closing. If the result is saved but closing fails, say that the result is recorded and the page remains open; retry only the page operation. Recording the same result for the same session is idempotent. If the user changes their report, update the stage in the board rather than creating a false new application record.

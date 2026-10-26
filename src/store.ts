@@ -44,7 +44,7 @@ export class Store {
     this.db = new DatabaseSync(join(directory, 'ichigo.sqlite'));
     this.db.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;');
     const version = Number((this.db.prepare('PRAGMA user_version').get() as {user_version: number}).user_version);
-    if (version > 1) { this.db.close(); throw new Error('Database version is newer than this program. Upgrade Ichigo'); }
+    if (version > 2) { this.db.close(); throw new Error('Database version is newer than this program. Upgrade Ichigo'); }
     if (version === 0) this.db.exec(`BEGIN;
       CREATE TABLE jobs (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT UNIQUE NOT NULL, data TEXT NOT NULL);
       CREATE TABLE history (id INTEGER PRIMARY KEY, job_id INTEGER NOT NULL REFERENCES jobs(id), text TEXT NOT NULL, time TEXT NOT NULL);
@@ -52,6 +52,11 @@ export class Store {
       CREATE UNIQUE INDEX one_active_session ON sessions((1)) WHERE ended_at IS NULL;
       CREATE TABLE imports (source_key TEXT PRIMARY KEY, job_id INTEGER NOT NULL REFERENCES jobs(id));
       PRAGMA user_version=1; COMMIT;`);
+    if (version < 2) this.transaction(() => {
+      this.db.exec(`DROP INDEX one_active_session;
+        CREATE UNIQUE INDEX one_active_session_per_job ON sessions(job_id) WHERE ended_at IS NULL;
+        PRAGMA user_version=2;`);
+    });
   }
   close() { this.db.close(); }
   transaction<T>(fn: () => T): T {
@@ -125,9 +130,8 @@ export class Store {
   start(id: number): { job: Job; session: Session; reused: boolean } {
     return this.transaction(() => {
       const job = this.get(id);
-      const active = this.db.prepare('SELECT * FROM sessions WHERE ended_at IS NULL').get();
+      const active = this.db.prepare('SELECT * FROM sessions WHERE job_id=? AND ended_at IS NULL').get(id);
       if (active) {
-        if (Number(active.job_id) !== id) throw new AppError('Another job application is active. Record its result first', 409);
         return { job, session: this.sessionRow(active), reused: true };
       }
       const sessionId = randomUUID();

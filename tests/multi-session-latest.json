@@ -1,0 +1,33 @@
+{
+  "passed": true,
+  "date": "2026-10-27",
+  "runId": "1793058040332",
+  "environment": {
+    "appBase": "http://127.0.0.1:4384",
+    "jobsBase": "http://127.0.0.1:4385",
+    "alternateBase": "http://127.0.0.1:4386",
+    "directory": ".data/e2e-FVzChh",
+    "productionDataModified": false
+  },
+  "automatedTests": 14,
+  "browserChecks": 29,
+  "cliChecks": 4,
+  "concurrentSessionChecks": [
+    "Different jobs have distinct concurrent active sessions",
+    "Starting an earlier active job reuses its own session",
+    "Mismatched concurrent session rejected without closing either page",
+    "Rejected result leaves the other active application unchanged",
+    "Finishing the second application closes only its own tab",
+    "Finishing the second application preserves the first active session and page records"
+  ],
+  "reproduction": [
+    "Run npm test and npm run check.",
+    "Start ICHIGO_E2E_PORT=4384 node scripts/e2e-serve.mjs.",
+    "Execute tests/e2e.scenario.mjs run(page, config) through Playwright MCP using the printed appBase, jobsBase, and alternateBase; use a new temporary page and close it afterward.",
+    "Stop the isolated fixture servers after verification."
+  ],
+  "limitations": [
+    "Ambiguous conversation reports are governed by the skill instructions and were reviewed, not simulated as an automated conversation.",
+    "Production backend was not running; its database will migrate on the next startup."
+  ]
+}

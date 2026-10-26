@@ -15,10 +15,36 @@ When the user confirms the application was submitted, record Applied. If they as
 - SQLite stores jobs, application sessions, page associations, notes, and activity history; local PNG or PDF files store job captures.
 - The backend serves data APIs, screenshots, and the frontend. It does not start or control Playwright or monitor page closure.
 - The apply-job skill and CLI start the service and record jobs and application results. Codex uses Playwright MCP for browser operations.
-- Stages are To Apply, Applying, Pending, Applied, Interview, Offer, Rejected, and Archived. Reuse the same job for duplicate URLs and retain multiple application records. Only one application may be active at a time in the first version.
+- Stages are To Apply, Applying, Pending, Applied, Interview, Offer, Rejected, and Archived. Reuse the same job for duplicate URLs and retain multiple application records. Multiple applications may be active across different jobs, with at most one active session per job.
 - Designed for a single local user; the service binds to 127.0.0.1. Automatic form filling, submission, bulk collection, and multi-device sync are out of scope.
 
 See [README.md](README.md) for installation, startup, migration, and backup instructions.
+
+## Multiple active applications
+
+Implemented and verified: different jobs can have active application sessions simultaneously. Starting another job must not require recording the previous job's result. Each job retains at most one active session; starting that job again reuses its session.
+
+### Storage and application behavior
+
+- Upgrade SQLite to schema version 2. Transactionally replace the global active-session unique index with a unique index on `job_id` where `ended_at IS NULL`. New databases must have the same constraint. Preserve existing jobs, sessions, page associations, and history.
+- Change application startup to query active sessions for the requested job only. Reuse its active session or create a new one regardless of other active jobs. Preserve the existing response shape and `reused` behavior.
+- Continue requiring job ID and session ID for page updates and results. Finishing one session must leave other jobs' sessions, stages, history, and page records untouched.
+- Retain result mappings, idempotency, screenshot behavior, and the requirement to record an active job's result before changing its stage. Manual browser closure alone does not end a session.
+
+### Skill, interfaces, and compatibility
+
+- Update the apply-job skill to permit multiple active jobs. Resolve result reports using explicit job references or unambiguous conversation context. Ask which job the user means when ambiguous, before saving or closing pages; never default to the newest session.
+- Identify application pages through session markers and saved associations. After saving succeeds, close only the pages the user requested for that application. Preserve all pages when saving fails.
+- No new endpoints, CLI flags, response fields, or frontend controls are required. Update README.md and workflow documentation to remove the single-active-job restriction, and track implementation and verification in progress.md.
+- Restart the backend after implementation to load the new code and migration. The older backend rejects schema version 2; reverting requires a compatible database backup.
+- Each application remains a separate manual workflow; automatic submission and bulk application remain out of scope.
+
+### Verification
+
+- Start two different jobs and verify distinct active sessions. Repeated starts must reuse each job's own session. Verify SQLite rejects a second active session for the same job while allowing sessions across jobs.
+- Migrate a version 1 database containing an active session, page records, and history; reopen it, verify preservation, and start another job successfully.
+- Finish sessions in reverse order and verify isolation, explicit application times, idempotent retries, and rejection of mismatched job/session IDs.
+- Run existing automated tests and syntax checks. Use an isolated browser fixture to verify separate page markers and confirm closing one application's pages leaves the other open. Review skill instructions for ambiguous reports and save failures.
 
 ## Native PDF fallback
 

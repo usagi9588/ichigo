@@ -46,7 +46,7 @@ test('complete API lifecycle, duplicate links, idempotent results, repeat applic
   assert.equal(r('POST',`/api/jobs/${id}/result`,{sessionId:session.id,result:'saved'}).data.job.stage,'saved');
   assert.equal(r('GET',`/api/jobs/${id}`).data.job.sessions.length,3);
 });
-test('one active job, invalid fields, URL collision and transaction rollback',t=>{
+test('multiple active jobs, invalid fields, URL collision and transaction rollback',t=>{
   const {store,request:r}=setup(t);
   assert.equal(r('POST','/api/jobs',{url:'javascript:alert(1)'}).status,400);
   assert.equal(r('POST','/api/jobs',{url:'https://example.test/bad',stage:'bogus'}).status,400);
@@ -54,7 +54,7 @@ test('one active job, invalid fields, URL collision and transaction rollback',t=
   const a=store.create({url:'https://example.test/a'}).job;
   const b=store.create({url:'https://example.test/b'}).job;
   store.start(a.id);
-  assert.equal(r('POST',`/api/jobs/${b.id}/start`).status,409);
+  assert.equal(r('POST',`/api/jobs/${b.id}/start`).status,200);
   assert.equal(r('PATCH',`/api/jobs/${b.id}`,{url:a.url}).status,409);
   assert.equal(r('POST',`/api/jobs/${a.id}/result`,{sessionId:'wrong',result:'applied'}).status,404);
   assert.equal(r('PATCH',`/api/jobs/${b.id}`,{appliedAt:'bad'}).status,400);
@@ -126,4 +126,51 @@ test('new jobs honor the chosen board stage without creating implicit active ses
   const created=r('POST','/api/jobs',{url:'https://example.test/interview',stage:'interview'});
   assert.equal(created.status,201);assert.equal(created.data.job.stage,'interview');assert.equal(created.data.job.sessions.length,0);
   assert.equal(r('POST','/api/jobs',{url:'https://example.test/implicit',stage:'applying'}).status,409);
+});
+
+
+test('version 1 migration preserves active sessions and page/history records', t => {
+  const {store,directory}=setup(t);
+  const a=store.create({url:'https://migration.test/a',notes:'Keep me'}).job;
+  const first=store.start(a.id);
+  store.pages(a.id,{sessionId:first.session.id,pages:[{url:a.url,marker:'ichigo:'+first.session.id}]});
+  const before=store.get(a.id);
+  // Restore the exact version 1 constraint to exercise the upgrade path.
+  store.db.exec('DROP INDEX one_active_session_per_job; CREATE UNIQUE INDEX one_active_session ON sessions((1)) WHERE ended_at IS NULL; PRAGMA user_version=1;');
+  const upgraded=new Store(directory);
+  try {
+    assert.deepEqual(upgraded.get(a.id),before);
+    assert.equal(upgraded.db.prepare('PRAGMA user_version').get()!.user_version,2);
+    const b=upgraded.create({url:'https://migration.test/b'}).job;
+    upgraded.start(b.id);
+    assert.equal(upgraded.start(a.id).session.id,first.session.id);
+  } finally {upgraded.close();}
+  const reopened=new Store(directory);
+  try {assert.deepEqual(reopened.get(a.id),before);assert.equal(reopened.list().filter(j=>j.sessions.some(s=>!s.endedAt)).length,2);} finally {reopened.close();}
+});
+
+test('per-job uniqueness and reverse-order results isolate concurrent sessions',t=>{
+  const {store,request:r}=setup(t);
+  const a=store.create({url:'https://parallel.test/a'}).job;
+  const b=store.create({url:'https://parallel.test/b'}).job;
+  const first=store.start(a.id),second=store.start(b.id);
+  assert.notEqual(first.session.id,second.session.id);
+  for(const item of [first,second]){
+    assert.equal(store.start(item.job.id).session.id,item.session.id);
+    assert.equal(store.start(item.job.id).reused,true);
+    store.pages(item.job.id,{sessionId:item.session.id,pages:[{url:item.job.url,marker:'ichigo:'+item.session.id}]});
+  }
+  assert.throws(()=>store.db.prepare('INSERT INTO sessions(id,job_id,started_at) VALUES(?,?,?)').run('duplicate',a.id,new Date().toISOString()),/UNIQUE/);
+  const beforeA=store.get(a.id),beforeB=store.get(b.id);
+  assert.equal(r('POST',`/api/jobs/${a.id}/pages`,{sessionId:second.session.id,pages:[]}).status,404);
+  assert.equal(r('POST',`/api/jobs/${a.id}/result`,{sessionId:second.session.id,result:'applied'}).status,404);
+  assert.deepEqual(store.get(a.id),beforeA);assert.deepEqual(store.get(b.id),beforeB);
+  const payload={sessionId:second.session.id,result:'applied',appliedAt:'2026-10-27T01:00:00Z'};
+  const finished=store.finish(b.id,payload);
+  assert.equal(finished.appliedAt,'2026-10-27T01:00:00.000Z');
+  assert.deepEqual(store.finish(b.id,payload),finished);
+  assert.deepEqual(store.get(a.id),beforeA);
+  store.finish(a.id,{sessionId:first.session.id,result:'pending'});
+  assert.deepEqual(store.get(b.id),finished);
+  assert.equal(store.get(a.id).sessions[0].pages.length,1);
 });
